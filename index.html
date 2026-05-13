@@ -313,9 +313,17 @@ select option{background:var(--surface);}
         <textarea id="aliasRulesInput" placeholder="C3 Church → C3&#10;C3Church → C3"></textarea>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn" style="color:var(--text);background:var(--surface2);border-color:var(--border2);" onclick="closeModal('settingsModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveSettings()">Save & Close</button>
+    <div class="modal-footer" style="justify-content:space-between;">
+      <div style="display:flex;gap:8px;">
+        <button class="btn" style="color:var(--text);background:var(--surface2);border-color:var(--border2);" onclick="exportSettings()">Export Settings</button>
+        <label class="btn" style="color:var(--text);background:var(--surface2);border-color:var(--border2);cursor:pointer;">
+          Import Settings<input type="file" accept=".json" style="display:none" onchange="importSettings(this)">
+        </label>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" style="color:var(--text);background:var(--surface2);border-color:var(--border2);" onclick="closeModal('settingsModal')">Cancel</button>
+        <button class="btn btn-primary" onclick="saveSettings()">Save & Close</button>
+      </div>
     </div>
   </div>
 </div>
@@ -722,6 +730,49 @@ function getSettings() {
 function saveSettings() {
   localStorage.setItem('inc26_settings', JSON.stringify(getSettings()));
   closeModal('settingsModal');
+}
+
+function exportSettings() {
+  const delta = {};
+  for (const [k,v] of Object.entries(assignments)) {
+    if (DEFAULT_ASSIGNMENTS[k] !== v) delta[k] = v;
+  }
+  const payload = { version: 1, settings: getSettings(), assignments: delta, mergeRules };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'inc-dashboard-settings.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importSettings(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.version) throw new Error('Unrecognised file format.');
+      if (data.settings) {
+        localStorage.setItem('inc26_settings', JSON.stringify(data.settings));
+        loadSettings();
+      }
+      if (data.assignments) {
+        localStorage.setItem('inc26_assignments', JSON.stringify(data.assignments));
+        loadAssignments();
+      }
+      if (data.mergeRules) {
+        mergeRules = data.mergeRules;
+        saveMerges();
+      }
+      alert('Settings imported. Re-upload your CSV to apply merge rules.');
+      input.value = '';
+    } catch(err) {
+      alert('Import failed: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
 }
 
 function loadMerges() {
