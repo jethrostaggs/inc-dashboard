@@ -147,6 +147,10 @@ select option{background:var(--surface);}
 .divider-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);padding:10px 0 6px;}
 
 .hidden{display:none!important;}
+.manual-badge{font-size:10px;font-weight:800;background:var(--butter);color:var(--text);padding:1px 6px;border-radius:10px;letter-spacing:.02em;white-space:nowrap;}
+.manual-input{width:72px;text-align:center;padding:4px 8px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);font-size:13px;outline:none;font-family:inherit;}
+.manual-input:focus{border-color:var(--border2);}
+.manual-input::-webkit-inner-spin-button,.manual-input::-webkit-outer-spin-button{opacity:1;}
 
 .view-banner{background:var(--surface2);border-bottom:1px solid var(--border2);padding:8px 28px;font-size:12px;color:var(--text2);text-align:center;letter-spacing:.04em;}
 @media(max-width:1100px){.network-grid{grid-template-columns:1fr 1fr;}}
@@ -168,6 +172,7 @@ select option{background:var(--surface);}
     <span class="last-updated hidden" id="lastUpdated"></span>
     <button class="btn hidden" id="shareBtn" onclick="generateViewLink()">Share View</button>
     <button class="btn hidden" id="mergeBtn" onclick="openMerge()">Merge Churches</button>
+    <button class="btn hidden" id="manualBtn" onclick="openManualTickets()">Add Tickets</button>
     <button class="btn" id="settingsBtn" onclick="openSettings()">Church Settings</button>
     <button class="btn btn-primary" id="uploadBtn" onclick="document.getElementById('csvInput').click()">Upload CSV</button>
     <input type="file" id="csvInput" accept=".csv" style="display:none" onchange="handleFile(this)">
@@ -278,6 +283,29 @@ select option{background:var(--surface);}
     <div class="modal-footer">
       <button class="btn" style="color:var(--text);background:var(--surface2);border-color:var(--border2);" onclick="closeModal('mergeModal')">Close</button>
       <button class="btn btn-primary" id="saveMergeBtn" onclick="saveMergeAction()" disabled>Merge Selected</button>
+    </div>
+  </div>
+</div>
+
+<!-- MANUAL TICKETS MODAL -->
+<div class="modal-overlay hidden" id="manualModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Manual Ticket Additions</div>
+      <button class="close-btn" onclick="closeModal('manualModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="notice">Enter extra tickets purchased outside Brushfire. These are added on top of your CSV data and persist across sessions. Search to find a church not yet in your CSV.</div>
+      <input class="search-bar" id="manualSearch" placeholder="Search churches…" oninput="renderManualList(this.value)">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0 2px;">
+        <span class="section-hint">Church</span>
+        <span class="section-hint" style="margin-right:4px;">Extra tickets</span>
+      </div>
+      <div id="manualList" style="overflow-y:auto;max-height:380px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="color:var(--text);background:var(--surface2);border-color:var(--border2);" onclick="closeModal('manualModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveManualTickets()">Save</button>
     </div>
   </div>
 </div>
@@ -704,6 +732,7 @@ const SUBURB_DISAMBIGUATION = {
 let rawCounts = {};
 let assignments = {};
 let mergeRules = {};
+let manualAdjustments = {};
 let lastUploadDate = null;
 let isViewOnly = false;
 
@@ -737,7 +766,7 @@ function exportSettings() {
   for (const [k,v] of Object.entries(assignments)) {
     if (DEFAULT_ASSIGNMENTS[k] !== v) delta[k] = v;
   }
-  const payload = { version: 1, settings: getSettings(), assignments: delta, mergeRules };
+  const payload = { version: 1, settings: getSettings(), assignments: delta, mergeRules, manualAdjustments };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -766,6 +795,10 @@ function importSettings(input) {
         mergeRules = data.mergeRules;
         saveMerges();
       }
+      if (data.manualAdjustments) {
+        manualAdjustments = data.manualAdjustments;
+        saveManualAdjustmentsStore();
+      }
       alert('Settings imported. Re-upload your CSV to apply merge rules.');
       input.value = '';
     } catch(err) {
@@ -782,6 +815,23 @@ function loadMerges() {
 
 function saveMerges() {
   localStorage.setItem('inc26_merges', JSON.stringify(mergeRules));
+}
+
+function loadManualAdjustments() {
+  try { manualAdjustments = JSON.parse(localStorage.getItem('inc26_manual') || '{}'); }
+  catch(e) { manualAdjustments = {}; }
+}
+
+function saveManualAdjustmentsStore() {
+  localStorage.setItem('inc26_manual', JSON.stringify(manualAdjustments));
+}
+
+function getEffectiveCounts() {
+  const result = Object.assign({}, rawCounts);
+  for (const [church, extra] of Object.entries(manualAdjustments)) {
+    if (extra > 0) result[church] = (result[church] || 0) + extra;
+  }
+  return result;
 }
 
 function applyMergesToCounts(counts) {
@@ -920,18 +970,20 @@ function showDashboard() {
   if (!isViewOnly) {
     document.getElementById('shareBtn').classList.remove('hidden');
     document.getElementById('mergeBtn').classList.remove('hidden');
+    document.getElementById('manualBtn').classList.remove('hidden');
   }
 }
 
 function renderDashboard() {
+  const effectiveCounts = getEffectiveCounts();
   const byNet = {}; NETWORKS.forEach(n => byNet[n] = {});
   const unassigned = {};
-  for (const [church, count] of Object.entries(rawCounts)) {
+  for (const [church, count] of Object.entries(effectiveCounts)) {
     const net = assignments[church] || null;
     if (net && byNet[net]) byNet[net][church] = count;
     else unassigned[church] = count;
   }
-  const total   = Object.values(rawCounts).reduce((a,b)=>a+b,0);
+  const total   = Object.values(effectiveCounts).reduce((a,b)=>a+b,0);
   const unTotal = Object.values(unassigned).reduce((a,b)=>a+b,0);
   const n75t  = sum(byNet['75']);
   const n120t = sum(byNet['120']);
@@ -941,7 +993,7 @@ function renderDashboard() {
   const nIt   = sum(byNet['International']);
 
   document.getElementById('kpiTotal').textContent        = total.toLocaleString();
-  document.getElementById('kpiChurchCount').textContent  = `from ${Object.keys(rawCounts).length} churches`;
+  document.getElementById('kpiChurchCount').textContent  = `from ${Object.keys(effectiveCounts).length} churches`;
   document.getElementById('kpiUnassigned').textContent   = Object.keys(unassigned).length;
   document.getElementById('kpiUnassignedSub').textContent= `${unTotal} registrations`;
   document.getElementById('kpi75').textContent    = n75t.toLocaleString();
@@ -989,7 +1041,7 @@ function renderDashboard() {
                 <div class="church-name">${esc(c)}</div>
                 <div class="church-count">
                   <div class="church-bar-wrap"><div class="church-bar" style="width:${Math.round(n/maxC*100)}%;background:${col};"></div></div>
-                  ${n}
+                  ${n}${manualAdjustments[c]>0?` <span class="manual-badge">+${manualAdjustments[c]}</span>`:''}
                 </div>
               </div>`).join('')
           : '<div class="empty-state">No churches assigned yet</div>'
@@ -1005,7 +1057,7 @@ function renderDashboard() {
     uList.innerHTML = Object.entries(unassigned).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`
       <div class="church-row">
         <div class="church-name">${esc(c)}</div>
-        <div class="church-count">${n}</div>
+        <div class="church-count">${n}${manualAdjustments[c]>0?` <span class="manual-badge">+${manualAdjustments[c]}</span>`:''}</div>
       </div>`).join('');
   } else {
     uSec.classList.add('hidden');
@@ -1164,6 +1216,63 @@ function deleteMergeRule(source) {
   saveMerges();
 }
 
+// ─── MANUAL TICKETS ──────────────────────────────────────────────────────────
+function openManualTickets() {
+  document.getElementById('manualSearch').value = '';
+  renderManualList('');
+  document.getElementById('manualModal').classList.remove('hidden');
+}
+
+function renderManualList(filter) {
+  const container = document.getElementById('manualList');
+  let churches;
+  if (filter) {
+    const all = new Set([
+      ...Object.keys(rawCounts),
+      ...Object.keys(manualAdjustments),
+      ...Object.keys(assignments),
+    ]);
+    churches = [...all].filter(c => c.toLowerCase().includes(filter.toLowerCase()));
+  } else {
+    // Default: only show churches that have CSV data or existing manual entries
+    churches = [...new Set([...Object.keys(rawCounts), ...Object.keys(manualAdjustments)])];
+  }
+  churches.sort((a, b) => {
+    const aM = (manualAdjustments[a] || 0) > 0;
+    const bM = (manualAdjustments[b] || 0) > 0;
+    if (aM && !bM) return -1;
+    if (!aM && bM) return 1;
+    return (rawCounts[b] || 0) - (rawCounts[a] || 0);
+  });
+  if (!churches.length) {
+    container.innerHTML = '<div class="empty-state">No churches found</div>';
+    return;
+  }
+  container.innerHTML = churches.map(church => {
+    const csvCount = rawCounts[church] || 0;
+    const manual   = manualAdjustments[church] || '';
+    return `<div class="assign-row" data-church="${esc(church)}">
+      <div class="assign-name">${esc(church)}</div>
+      <div class="assign-count" style="font-size:11px;color:var(--text3);min-width:52px;text-align:right;">${csvCount > 0 ? csvCount + ' CSV' : ''}</div>
+      <input type="number" min="0" class="manual-input" value="${manual}"
+             placeholder="0" data-church="${esc(church)}"
+             title="Extra tickets to add for ${esc(church)}">
+    </div>`;
+  }).join('');
+}
+
+function saveManualTickets() {
+  document.querySelectorAll('#manualList .manual-input').forEach(input => {
+    const church = input.dataset.church;
+    const val = parseInt(input.value, 10);
+    if (val > 0) manualAdjustments[church] = val;
+    else delete manualAdjustments[church];
+  });
+  saveManualAdjustmentsStore();
+  closeModal('manualModal');
+  renderDashboard();
+}
+
 // ─── SHARE / VIEW-ONLY ────────────────────────────────────────────────────────
 function getDelta() {
   const delta = {};
@@ -1212,7 +1321,7 @@ async function generateViewLink() {
   btn.textContent = 'Generating…';
   btn.disabled = true;
   try {
-    const snapshot   = JSON.stringify({ c: rawCounts, a: getDelta() });
+    const snapshot   = JSON.stringify({ c: rawCounts, a: getDelta(), m: manualAdjustments });
     const compressed = await compressToB64(snapshot);
     const fullUrl    = location.origin + location.pathname + '#view2=' + compressed;
     const shareUrl   = (await shortenUrl(fullUrl)) || fullUrl;
@@ -1237,6 +1346,7 @@ async function loadViewFromHash() {
     rawCounts = data.c || {};
     loadAssignments();
     if (data.a) Object.assign(assignments, data.a);
+    manualAdjustments = data.m || {};
     lastUploadDate = null;
     renderDashboard();
     document.getElementById('emptyState').classList.add('hidden');
@@ -1272,6 +1382,7 @@ if (dropZone) {
 loadSettings();
 loadAssignments();
 loadMerges();
+loadManualAdjustments();
 if (location.hash.startsWith('#view=') || location.hash.startsWith('#view2=')) {
   isViewOnly = true;
   loadViewFromHash();
