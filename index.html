@@ -167,6 +167,7 @@ select option{background:var(--surface);}
   <div class="header-right">
     <span class="last-updated hidden" id="lastUpdated"></span>
     <button class="btn hidden" id="shareBtn" onclick="generateViewLink()">Share View</button>
+    <button class="btn hidden" id="mergeBtn" onclick="openMerge()">Merge Churches</button>
     <button class="btn" id="settingsBtn" onclick="openSettings()">Church Settings</button>
     <button class="btn btn-primary" id="uploadBtn" onclick="document.getElementById('csvInput').click()">Upload CSV</button>
     <input type="file" id="csvInput" accept=".csv" style="display:none" onchange="handleFile(this)">
@@ -250,6 +251,34 @@ select option{background:var(--surface);}
       <div class="church-list" id="unassignedList"></div>
     </div>
 
+  </div>
+</div>
+
+<!-- MERGE MODAL -->
+<div class="modal-overlay hidden" id="mergeModal">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <div class="modal-title">Merge Churches</div>
+      <button class="close-btn" onclick="closeModal('mergeModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="notice">Tick two or more churches to combine their registrations. Choose which name to keep — the others become aliases going forward.</div>
+      <input class="search-bar" id="mergeSearch" placeholder="Search churches…" oninput="filterMergeList()">
+      <div id="mergeList" style="overflow-y:auto;max-height:260px;"></div>
+      <div id="mergeTarget" class="hidden" style="margin-top:12px;">
+        <label>Keep this name (others will merge into it)</label>
+        <select id="mergeCanonical"></select>
+      </div>
+      <div id="existingMergesSection" class="hidden" style="margin-top:16px;">
+        <div class="divider-label">Existing Merge Rules</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">Removing a rule takes effect on your next CSV upload.</div>
+        <div id="existingMergesList" style="overflow-y:auto;max-height:160px;"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="color:var(--text);background:var(--surface2);border-color:var(--border2);" onclick="closeModal('mergeModal')">Close</button>
+      <button class="btn btn-primary" id="saveMergeBtn" onclick="saveMergeAction()" disabled>Merge Selected</button>
+    </div>
   </div>
 </div>
 
@@ -666,6 +695,7 @@ const SUBURB_DISAMBIGUATION = {
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let rawCounts = {};
 let assignments = {};
+let mergeRules = {};
 let lastUploadDate = null;
 let isViewOnly = false;
 
@@ -692,6 +722,24 @@ function getSettings() {
 function saveSettings() {
   localStorage.setItem('inc26_settings', JSON.stringify(getSettings()));
   closeModal('settingsModal');
+}
+
+function loadMerges() {
+  try { mergeRules = JSON.parse(localStorage.getItem('inc26_merges') || '{}'); }
+  catch(e) { mergeRules = {}; }
+}
+
+function saveMerges() {
+  localStorage.setItem('inc26_merges', JSON.stringify(mergeRules));
+}
+
+function applyMergesToCounts(counts) {
+  const result = {};
+  for (const [name, count] of Object.entries(counts)) {
+    const canonical = mergeRules[name] || name;
+    result[canonical] = (result[canonical] || 0) + count;
+  }
+  return result;
 }
 
 function loadAssignments() {
@@ -750,7 +798,7 @@ function parseCsv(text) {
     const name   = normaliseName(raw, suburb, s);
     counts[name] = (counts[name] || 0) + 1;
   }
-  rawCounts = counts;
+  rawCounts = applyMergesToCounts(counts);
   lastUploadDate = new Date();
   loadAssignments();
   renderDashboard();
@@ -816,7 +864,10 @@ function showDashboard() {
     el.textContent = 'Updated ' + lastUploadDate.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
     el.classList.remove('hidden');
   }
-  if (!isViewOnly) document.getElementById('shareBtn').classList.remove('hidden');
+  if (!isViewOnly) {
+    document.getElementById('shareBtn').classList.remove('hidden');
+    document.getElementById('mergeBtn').classList.remove('hidden');
+  }
 }
 
 function renderDashboard() {
@@ -965,6 +1016,101 @@ function saveAssignments() {
 
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
+// ─── MERGE ────────────────────────────────────────────────────────────────────
+let mergeSelections = new Set();
+
+function openMerge() {
+  mergeSelections.clear();
+  document.getElementById('mergeSearch').value = '';
+  renderMergeList('');
+  renderExistingMerges();
+  updateMergeTarget();
+  document.getElementById('mergeModal').classList.remove('hidden');
+}
+
+function renderMergeList(filter) {
+  const container = document.getElementById('mergeList');
+  const churches = Object.entries(rawCounts)
+    .sort((a,b) => b[1]-a[1])
+    .filter(([c]) => !filter || c.toLowerCase().includes(filter.toLowerCase()));
+  container.innerHTML = churches.length
+    ? churches.map(([church, count]) => {
+        const checked = mergeSelections.has(church);
+        const isMergeTarget = Object.values(mergeRules).includes(church);
+        const isMergeSource = !!mergeRules[church];
+        const tag = isMergeTarget ? '<span style="font-size:10px;color:var(--moss);margin-left:6px;">← merged into</span>'
+                  : isMergeSource ? `<span style="font-size:10px;color:var(--text3);margin-left:6px;">→ ${esc(mergeRules[church])}</span>`
+                  : '';
+        return `<div class="assign-row">
+          <input type="checkbox" ${checked?'checked':''} onchange="toggleMergeSelect('${esc(church).replace(/'/g,"\\'")}',this.checked)" style="width:16px;height:16px;cursor:pointer;flex-shrink:0;">
+          <div class="assign-name" style="display:flex;align-items:center;gap:0;">${esc(church)}${tag}</div>
+          <div class="assign-count">${count}</div>
+        </div>`;
+      }).join('')
+    : '<div class="empty-state">No churches loaded</div>';
+}
+
+function toggleMergeSelect(church, checked) {
+  if (checked) mergeSelections.add(church);
+  else mergeSelections.delete(church);
+  updateMergeTarget();
+}
+
+function filterMergeList() {
+  renderMergeList(document.getElementById('mergeSearch').value);
+}
+
+function updateMergeTarget() {
+  const selected = [...mergeSelections];
+  const targetDiv = document.getElementById('mergeTarget');
+  const saveBtn   = document.getElementById('saveMergeBtn');
+  if (selected.length < 2) { targetDiv.classList.add('hidden'); saveBtn.disabled = true; return; }
+  targetDiv.classList.remove('hidden');
+  saveBtn.disabled = false;
+  const sel = document.getElementById('mergeCanonical');
+  const cur = sel.value;
+  sel.innerHTML = selected.map(c => `<option value="${esc(c)}" ${cur===c?'selected':''}>${esc(c)}</option>`).join('');
+  if (!selected.includes(cur)) sel.value = selected[0];
+}
+
+function saveMergeAction() {
+  const canonical = document.getElementById('mergeCanonical').value;
+  if (!canonical) return;
+  for (const source of mergeSelections) {
+    if (source !== canonical) mergeRules[source] = canonical;
+  }
+  saveMerges();
+  rawCounts = applyMergesToCounts(rawCounts);
+  mergeSelections.clear();
+  loadAssignments();
+  renderDashboard();
+  renderMergeList('');
+  renderExistingMerges();
+  updateMergeTarget();
+  document.getElementById('mergeSearch').value = '';
+}
+
+function renderExistingMerges() {
+  const rules = Object.entries(mergeRules);
+  const section = document.getElementById('existingMergesSection');
+  const container = document.getElementById('existingMergesList');
+  if (!rules.length) { section.classList.add('hidden'); return; }
+  section.classList.remove('hidden');
+  container.innerHTML = rules.map(([source, canonical]) =>
+    `<div class="assign-row">
+      <div class="assign-name" style="flex:1;">${esc(source)}</div>
+      <div style="font-size:12px;color:var(--text3);margin:0 8px;">→</div>
+      <div class="assign-name" style="flex:1;">${esc(canonical)}</div>
+      <button onclick="deleteMergeRule('${esc(source).replace(/'/g,"\\'")}'); renderExistingMerges();" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;line-height:1;padding:0 4px;" title="Remove rule">×</button>
+    </div>`
+  ).join('');
+}
+
+function deleteMergeRule(source) {
+  delete mergeRules[source];
+  saveMerges();
+}
+
 // ─── SHARE / VIEW-ONLY ────────────────────────────────────────────────────────
 function getDelta() {
   const delta = {};
@@ -1000,6 +1146,7 @@ function loadViewFromHash() {
     // Hide all edit controls
     document.getElementById('uploadBtn').classList.add('hidden');
     document.getElementById('settingsBtn').classList.add('hidden');
+    document.getElementById('mergeBtn').classList.add('hidden');
     document.getElementById('csvInput').classList.add('hidden');
     document.getElementById('viewBanner').classList.remove('hidden');
     document.querySelector('#unassignedSection .btn')?.classList.add('hidden');
@@ -1027,6 +1174,7 @@ if (dropZone) {
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 loadSettings();
 loadAssignments();
+loadMerges();
 if (location.hash.startsWith('#view=')) {
   isViewOnly = true;
   loadViewFromHash();
