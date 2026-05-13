@@ -1171,22 +1171,67 @@ function getDelta() {
   return delta;
 }
 
-function generateViewLink() {
-  try {
-    const snapshot = JSON.stringify({ c: rawCounts, a: getDelta() });
-    const encoded  = btoa(unescape(encodeURIComponent(snapshot)));
-    const url      = location.origin + location.pathname + '#view=' + encoded;
-    navigator.clipboard.writeText(url).then(
-      () => { document.getElementById('shareBtn').textContent = 'Copied!'; setTimeout(()=>{ document.getElementById('shareBtn').textContent = 'Share View'; }, 2000); },
-      () => prompt('Copy this link:', url)
-    );
-  } catch(e) { alert('Error generating link: ' + e.message); }
+async function compressToB64(str) {
+  const cs = new CompressionStream('deflate-raw');
+  const w = cs.writable.getWriter();
+  w.write(new TextEncoder().encode(str));
+  w.close();
+  const buf = await new Response(cs.readable).arrayBuffer();
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
 }
 
-function loadViewFromHash() {
+async function decompressFromB64(b64) {
+  const std = b64.replace(/-/g,'+').replace(/_/g,'/');
+  const pad = std + '==='.slice((std.length+3)%4);
+  const bytes = Uint8Array.from(atob(pad), c => c.charCodeAt(0));
+  const ds = new DecompressionStream('deflate-raw');
+  const w = ds.writable.getWriter();
+  w.write(bytes); w.close();
+  return new Response(ds.readable).text();
+}
+
+async function shortenUrl(longUrl) {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), 5000);
   try {
-    const encoded = location.hash.slice(6);
-    const data    = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+    const resp = await fetch(
+      `https://is.gd/create.php?format=json&url=${encodeURIComponent(longUrl)}`,
+      { signal: controller.signal }
+    );
+    const json = await resp.json();
+    return json.shorturl || null;
+  } catch(e) { return null; }
+  finally { clearTimeout(t); }
+}
+
+async function generateViewLink() {
+  const btn = document.getElementById('shareBtn');
+  btn.textContent = 'Generating…';
+  btn.disabled = true;
+  try {
+    const snapshot   = JSON.stringify({ c: rawCounts, a: getDelta() });
+    const compressed = await compressToB64(snapshot);
+    const fullUrl    = location.origin + location.pathname + '#view2=' + compressed;
+    const shareUrl   = (await shortenUrl(fullUrl)) || fullUrl;
+    await navigator.clipboard.writeText(shareUrl).catch(() => prompt('Copy this link:', shareUrl));
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Share View'; btn.disabled = false; }, 2000);
+  } catch(e) {
+    btn.textContent = 'Share View';
+    btn.disabled = false;
+    alert('Error generating link: ' + e.message);
+  }
+}
+
+async function loadViewFromHash() {
+  try {
+    let data;
+    if (location.hash.startsWith('#view2=')) {
+      data = JSON.parse(await decompressFromB64(location.hash.slice(7)));
+    } else {
+      data = JSON.parse(decodeURIComponent(escape(atob(location.hash.slice(6)))));
+    }
     rawCounts = data.c || {};
     loadAssignments();
     if (data.a) Object.assign(assignments, data.a);
@@ -1194,7 +1239,6 @@ function loadViewFromHash() {
     renderDashboard();
     document.getElementById('emptyState').classList.add('hidden');
     document.getElementById('dashboard').classList.remove('hidden');
-    // Hide all edit controls
     document.getElementById('uploadBtn').classList.add('hidden');
     document.getElementById('settingsBtn').classList.add('hidden');
     document.getElementById('mergeBtn').classList.add('hidden');
@@ -1226,7 +1270,7 @@ if (dropZone) {
 loadSettings();
 loadAssignments();
 loadMerges();
-if (location.hash.startsWith('#view=')) {
+if (location.hash.startsWith('#view=') || location.hash.startsWith('#view2=')) {
   isViewOnly = true;
   loadViewFromHash();
 }
