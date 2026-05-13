@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INC Conference 2026 — Registration Dashboard</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,700;0,800;1,400&display=swap');
+
+:root {
+  --bg:        #FBFFF0;
+  --surface:   #FFFFFF;
+  --surface2:  #F3F7E4;
+  --border:    #E0E8CC;
+  --border2:   #C8D8A8;
+  --text:      #2E2E2E;
+  --text2:     #5a5a5a;
+  --text3:     #9a9a8a;
+  --butter:    #F2EB73;
+  --blood:     #E07A1C;
+  --peri:      #96A6FF;
+  --moss:      #54944a;
+  --orchid:    #E89EF0;
+  --violet:    #A178CF;
+  --matcha:    #b0c27d;
+  --intl:      #2EC4B6;
+  --n75:       #E07A1C;
+  --n120:      #54944a;
+  --n200:      #96A6FF;
+  --n450:      #A178CF;
+  --nplus:     #E89EF0;
+  --nintl:     #2EC4B6;
+  --unassigned:#9a9a8a;
+  --radius:    10px;
+  --radius-sm: 6px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Barlow',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5;}
+
+/* HEADER */
+.header{background:var(--text);padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:68px;position:sticky;top:0;z-index:100;}
+.logo{display:flex;align-items:center;gap:14px;}
+.logo-mark{background:var(--butter);color:var(--text);font-size:15px;font-weight:800;letter-spacing:.02em;padding:6px 10px;border-radius:6px;line-height:1.1;text-align:center;}
+.logo-text{color:#fff;font-size:15px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;}
+.logo-theme{color:var(--butter);font-size:11px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;opacity:.8;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.btn{padding:8px 16px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:rgba(255,255,255,.8);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;letter-spacing:.02em;}
+.btn:hover{border-color:rgba(255,255,255,.4);color:#fff;}
+.btn-primary{background:var(--butter);border-color:var(--butter);color:var(--text);}
+.btn-primary:hover{background:#eee068;color:var(--text);}
+.last-updated{font-size:12px;color:rgba(255,255,255,.45);letter-spacing:.03em;}
+
+/* MAIN */
+.main{max-width:1400px;margin:0 auto;padding:28px;display:flex;flex-direction:column;gap:20px;}
+
+/* UPLOAD ZONE */
+.upload-zone{background:var(--surface);border:2px dashed var(--border2);border-radius:var(--radius);padding:44px;text-align:center;cursor:pointer;transition:all .2s;position:relative;}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--blood);background:#fff8f2;}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.upload-icon{font-size:36px;margin-bottom:12px;}
+.upload-title{font-size:17px;font-weight:700;margin-bottom:4px;letter-spacing:.02em;}
+.upload-hint{font-size:13px;color:var(--text3);}
+
+/* KPI GRID */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;position:relative;overflow:hidden;}
+.kpi-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;}
+.kpi-card.total::after{background:var(--butter);}
+.kpi-card.unassigned::after{background:var(--border2);}
+.kpi-card.k75::after{background:var(--n75);}
+.kpi-card.k120::after{background:var(--n120);}
+.kpi-card.k200::after{background:var(--n200);}
+.kpi-card.k450::after{background:var(--n450);}
+.kpi-card.kplus::after{background:var(--nplus);}
+.kpi-card.kintl::after{background:var(--nintl);}
+.kpi-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);margin-bottom:6px;}
+.kpi-value{font-size:28px;font-weight:800;line-height:1;margin-bottom:2px;}
+.kpi-sub{font-size:11px;color:var(--text2);}
+
+/* NETWORK GRID */
+.network-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.network-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.network-header{padding:16px 20px;display:flex;align-items:flex-start;justify-content:space-between;border-bottom:1px solid var(--border);}
+.network-badge{display:inline-block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;padding:4px 10px;border-radius:20px;margin-bottom:4px;}
+.network-total{font-size:28px;font-weight:800;line-height:1;}
+.network-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.net-progress{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:10px;width:80px;}
+.net-progress-fill{height:100%;border-radius:2px;transition:width .5s;}
+.church-list{padding:0;}
+.church-row{display:flex;align-items:center;justify-content:space-between;padding:9px 20px;border-bottom:1px solid var(--border);transition:background .1s;}
+.church-row:last-child{border-bottom:none;}
+.church-row:hover{background:var(--surface2);}
+.church-name{font-size:13px;color:var(--text);font-weight:500;}
+.church-count{font-size:13px;font-weight:700;color:var(--text2);display:flex;align-items:center;gap:8px;}
+.church-bar-wrap{width:50px;height:3px;background:var(--border);border-radius:2px;overflow:hidden;}
+.church-bar{height:100%;border-radius:2px;}
+.empty-state{padding:20px;color:var(--text3);font-size:13px;text-align:center;}
+
+/* UNASSIGNED */
+.unassigned-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.unassigned-header{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+
+/* NOTICE */
+.notice{background:#fffbea;border:1px solid #f0e060;border-radius:var(--radius-sm);padding:12px 16px;font-size:13px;color:#7a6400;}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(46,46,46,.55);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);width:100%;max-width:680px;max-height:90vh;display:flex;flex-direction:column;}
+.modal-header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-size:16px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;}
+.modal-body{padding:20px 24px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:16px;}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;}
+.close-btn{background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer;line-height:1;padding:2px 6px;border-radius:4px;}
+.close-btn:hover{color:var(--text);background:var(--surface2);}
+
+/* FORM */
+label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);display:block;margin-bottom:5px;}
+input[type=text],select,textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;outline:none;transition:border-color .15s;font-family:inherit;}
+input[type=text]:focus,select:focus,textarea:focus{border-color:var(--border2);}
+textarea{resize:vertical;min-height:80px;}
+select option{background:var(--surface);}
+
+/* SECTION */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);}
+.section-hint{font-size:11px;color:var(--text3);}
+
+/* ASSIGN */
+.assign-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
+.assign-row:last-child{border-bottom:none;}
+.assign-name{flex:1;font-size:13px;font-weight:500;}
+.assign-count{font-size:12px;color:var(--text3);min-width:28px;text-align:right;font-weight:600;}
+.assign-select{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:5px;padding:4px 8px;font-size:12px;cursor:pointer;outline:none;font-family:inherit;}
+
+/* SEARCH */
+.search-bar{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;color:var(--text);width:100%;outline:none;font-family:inherit;margin-bottom:4px;}
+.search-bar:focus{border-color:var(--border2);}
+.search-bar::placeholder{color:var(--text3);}
+
+/* EMPTY SCREEN */
+.empty-screen{text-align:center;padding:60px 24px;}
+.empty-screen-icon{font-size:44px;margin-bottom:16px;}
+.empty-screen-title{font-size:22px;font-weight:800;margin-bottom:8px;text-transform:uppercase;letter-spacing:.03em;}
+.empty-screen-desc{font-size:14px;color:var(--text2);max-width:420px;margin:0 auto 28px;}
+
+/* DIVIDER LABEL */
+.divider-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);padding:10px 0 6px;}
+
+.hidden{display:none!important;}
+
+.view-banner{background:var(--surface2);border-bottom:1px solid var(--border2);padding:8px 28px;font-size:12px;color:var(--text2);text-align:center;letter-spacing:.04em;}
+@media(max-width:1100px){.network-grid{grid-template-columns:1fr 1fr;}}
+@media(max-width:900px){.kpi-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:600px){.network-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">
+    <div class="logo-mark">INC<br>2026</div>
+    <div>
+      <div class="logo-text">Registration Dashboard</div>
+      <div class="logo-theme">Like Those Who Dreamed</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="last-updated hidden" id="lastUpdated"></span>
+    <button class="btn hidden" id="shareBtn" onclick="generateViewLink()">Share View</button>
+    <button class="btn" id="settingsBtn" onclick="openSettings()">Church Settings</button>
+    <button class="btn btn-primary" id="uploadBtn" onclick="document.getElementById('csvInput').click()">Upload CSV</button>
+    <input type="file" id="csvInput" accept=".csv" style="display:none" onchange="handleFile(this)">
+  </div>
+</header>
+<div class="view-banner hidden" id="viewBanner">Read-only view — contact your INC admin to update this data</div>
+
+<div class="main">
+
+  <!-- EMPTY STATE -->
+  <div id="emptyState">
+    <div class="empty-screen">
+      <div class="empty-screen-icon">📋</div>
+      <div class="empty-screen-title">No Data Loaded</div>
+      <div class="empty-screen-desc">Upload a Brushfire CSV export to see registration numbers by church and network. Church assignments are already pre-loaded — just drop your file.</div>
+      <div class="upload-zone" style="max-width:460px;margin:0 auto;" id="dropZone">
+        <input type="file" id="csvInput2" accept=".csv" onchange="handleFile(this)">
+        <div class="upload-icon">☁️</div>
+        <div class="upload-title">Drop CSV here or click to browse</div>
+        <div class="upload-hint">Brushfire attendee export · any file size</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" class="hidden">
+
+    <div class="kpi-grid">
+      <div class="kpi-card total">
+        <div class="kpi-label">Total Registrations</div>
+        <div class="kpi-value" id="kpiTotal">0</div>
+        <div class="kpi-sub" id="kpiChurchCount">from 0 churches</div>
+      </div>
+      <div class="kpi-card k75">
+        <div class="kpi-label">Network 75</div>
+        <div class="kpi-value" id="kpi75">0</div>
+        <div class="kpi-sub" id="kpi75sub">registrations</div>
+      </div>
+      <div class="kpi-card k120">
+        <div class="kpi-label">Network 120</div>
+        <div class="kpi-value" id="kpi120">0</div>
+        <div class="kpi-sub" id="kpi120sub">registrations</div>
+      </div>
+      <div class="kpi-card k200">
+        <div class="kpi-label">Network 200</div>
+        <div class="kpi-value" id="kpi200">0</div>
+        <div class="kpi-sub" id="kpi200sub">registrations</div>
+      </div>
+      <div class="kpi-card k450">
+        <div class="kpi-label">Network 450</div>
+        <div class="kpi-value" id="kpi450">0</div>
+        <div class="kpi-sub" id="kpi450sub">registrations</div>
+      </div>
+      <div class="kpi-card kplus">
+        <div class="kpi-label">Network Plus</div>
+        <div class="kpi-value" id="kpiPlus">0</div>
+        <div class="kpi-sub" id="kpiPlussub">registrations</div>
+      </div>
+      <div class="kpi-card kintl">
+        <div class="kpi-label">International</div>
+        <div class="kpi-value" id="kpiIntl">0</div>
+        <div class="kpi-sub" id="kpiIntlsub">registrations</div>
+      </div>
+      <div class="kpi-card unassigned">
+        <div class="kpi-label">Unassigned</div>
+        <div class="kpi-value" id="kpiUnassigned">0</div>
+        <div class="kpi-sub" id="kpiUnassignedSub">need a network</div>
+      </div>
+    </div>
+
+    <div class="network-grid" id="networkGrid"></div>
+
+    <div class="unassigned-card hidden" id="unassignedSection">
+      <div class="unassigned-header">
+        <div>
+          <div style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Unassigned Churches</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px;">These names didn't match a known church — review and assign them</div>
+        </div>
+        <button class="btn" style="color:var(--text);background:var(--surface2);border-color:var(--border2);" onclick="openAssign()">Assign to Networks</button>
+      </div>
+      <div class="church-list" id="unassignedList"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay hidden" id="settingsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Church Settings</div>
+      <button class="close-btn" onclick="closeModal('settingsModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="notice">Changes persist automatically across sessions. Re-upload your CSV after changing rules.</div>
+      <div>
+        <label>Church Name Column</label>
+        <input type="text" id="colNameInput" placeholder="e.g. Your Church Name">
+        <div class="section-hint" style="margin-top:4px;">The exact column header from your Brushfire export that contains the church name.</div>
+      </div>
+      <div>
+        <label>Suburb / City Column <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional — used to resolve multi-campus churches)</span></label>
+        <input type="text" id="suburbColInput" placeholder="e.g. Address: City  (leave blank to auto-detect)">
+        <div class="section-hint" style="margin-top:4px;">When a registrant types "Harvest Point Church" or "Elevation Church", the suburb column is checked to match them to the correct campus. Leave blank to auto-detect common Brushfire column names.</div>
+      </div>
+      <div>
+        <label>Multi-site Prefix Rules</label>
+        <div class="section-hint" style="margin-bottom:6px;">Any church name <em>starting with</em> the prefix maps to the canonical name (case-insensitive). One rule per line: <code>Prefix → Canonical Name</code></div>
+        <div class="notice" style="margin-bottom:8px;">Note: Elevation Church and Citipointe locations span multiple networks, so grouping them will move them to Unassigned. Only add rules if you want to track a church family as a single total.</div>
+        <textarea id="groupRulesInput" placeholder="Elevation Church → Elevation Church&#10;Citipointe → Citipointe Church"></textarea>
+      </div>
+      <div>
+        <label>Name Aliases</label>
+        <div class="section-hint" style="margin-bottom:6px;">Exact match → canonical name. Handles typos or abbreviations.</div>
+        <textarea id="aliasRulesInput" placeholder="C3 Church → C3&#10;C3Church → C3"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="color:var(--text);background:var(--surface2);border-color:var(--border2);" onclick="closeModal('settingsModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSettings()">Save & Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ASSIGN MODAL -->
+<div class="modal-overlay hidden" id="assignModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Assign Churches to Networks</div>
+      <button class="close-btn" onclick="closeModal('assignModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="notice" id="assignNotice"></div>
+      <input class="search-bar" id="assignSearch" placeholder="Search churches…" oninput="filterAssign()">
+      <div id="assignList" style="overflow-y:auto;max-height:400px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="color:var(--text);background:var(--surface2);border-color:var(--border2);" onclick="closeModal('assignModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveAssignments()">Save Assignments</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── NETWORK CONFIG ───────────────────────────────────────────────────────────
+const NETWORKS = ['75','120','200','450','Plus','International'];
+const NETWORK_LABELS = { '75':'Network 75', '120':'Network 120', '200':'Network 200', '450':'Network 450', 'Plus':'Network Plus', 'International':'International' };
+const NETWORK_COLORS = { '75':'#E07A1C', '120':'#54944a', '200':'#96A6FF', '450':'#A178CF', 'Plus':'#E89EF0', 'International':'#2EC4B6' };
+const NETWORK_TEXT  = { '75':'#fff', '120':'#fff', '200':'#2E2E2E', '450':'#fff', 'Plus':'#2E2E2E', 'International':'#fff' };
+
+// ─── DEFAULT ALIASES (common short/variant names → canonical) ────────────────
+// Keys are lowercased for matching. Values must match a key in DEFAULT_ASSIGNMENTS.
+const DEFAULT_ALIASES = {
+  // Beacon Church Redlands
+  'beacon church':                        'Beacon Church Redlands',
+  'beacon':                               'Beacon Church Redlands',
+  // Goodlife Church - Newcastle
+  'goodlife':                             'Goodlife Church - Newcastle',
+  'goodlife church':                      'Goodlife Church - Newcastle',
+  'goodlife newcastle':                   'Goodlife Church - Newcastle',
+  'goodlife church newcastle':            'Goodlife Church - Newcastle',
+  // Arise Church Lismore
+  'arise church':                         'Arise Church Lismore',
+  'arise':                                'Arise Church Lismore',
+  // The Rock Church Port Stephens
+  'the rock church':                      'The Rock Church Port Stephens',
+  'the rock church - port stephens':      'The Rock Church Port Stephens',
+  'the rock church port stephens':        'The Rock Church Port Stephens',
+  'the rock':                             'The Rock Church Port Stephens',
+  // Transformation Church Kempsey (case variant)
+  'transformation church kempsey':        'Transformation Church Kempsey',
+  // Infinity Church - South Morang
+  'infinity church':                      'Infinity Church - South Morang',
+  // ConXions Church
+  'conxions':                             'ConXions Church',
+  'conxions church':                      'ConXions Church',
+  // Elevation Church Melbourne West
+  'elevation melbourne west':             'Elevation Church Melbourne West',
+  'elevation church melbourne west':      'Elevation Church Melbourne West',
+  // Harvest Point Church Boonah
+  'harvest point boonah':                 'Harvest Point Church Boonah',
+  'boonah harvest point church':          'Harvest Point Church Boonah',
+  'harvest point church boonah':          'Harvest Point Church Boonah',
+  // Harvest Point Church St George
+  'harvest point st george':              'Harvest Point Church St George',
+  'harvest point church st george':       'Harvest Point Church St George',
+  // Harvest Point Church Beaudesert
+  'harvest point beaudesert':             'Harvest Point Church Beaudesert',
+  'harvest point church beaudesert':      'Harvest Point Church Beaudesert',
+  // Citipointe Brisbane (Carindale is the suburb)
+  'citipointe carindale':                 'Citipointe Brisbane',
+  // Sapphire City - Church on the Corner
+  'sapphire city church':                 'Sapphire City - Church on the Corner',
+  'sapphire city':                        'Sapphire City - Church on the Corner',
+  // King's Church Kununurra
+  'kings church':                         "King's Church Kununurra",
+  "king's church":                        "King's Church Kununurra",
+  // Heartlands Church Casino
+  'heartlands church':                    'Heartlands Church Casino',
+  // Action Church Macksville
+  'action church':                        'Action Church Macksville',
+  // Riverside Church - Dubbo
+  'riverside church dubbo':               'Riverside Church - Dubbo',
+  'riverside church - dubbo':             'Riverside Church - Dubbo',
+  // Liberty Church Epping
+  'liberty church':                       'Liberty Church Epping',
+  // U R Church Burdekin (some register as "INC Ayr Burdekin")
+  'inc ayr burdekin':                     'U R Church Burdekin',
+  'u r church burdekin':                  'U R Church Burdekin',
+  // Seacoast Church Ballina
+  'seacoast':                             'Seacoast Church Ballina',
+  'seacoast church':                      'Seacoast Church Ballina',
+  // Kingdom Hope (casing variant)
+  'kingdom hope':                         'Kingdom Hope',
+  // Riverside Church Wellington
+  'riverside church wellington nsw':      'Riverside Church Wellington',
+  // One Life Church Mudgee
+  'one life church mudgee inc':           'One Life Church Mudgee',
+  'one life church mudgee':               'One Life Church Mudgee',
+  // Thrive Church (both locations are Network 75)
+  'thrive church':                        'Thrive Church Coonabarabran',
+  // Centerpoint Church Melton
+  'centerpoint church inc':               'Centerpoint Church Melton',
+  // Alive Church Bundaberg (only campus)
+  'alive church':                         'Alive Church Bundaberg',
+  // Surfside Church Margaret River (only campus)
+  'surfside church':                      'Surfside Church Margaret River',
+  'surfside':                             'Surfside Church Margaret River',
+  // Seacoast Church Ballina additional variants
+  'seacoast ballina nsw':                 'Seacoast Church Ballina',
+  'seacoast ballina':                     'Seacoast Church Ballina',
+  // Highlands Church — inverted word order
+  'highfields highlands':                 'Highlands Church Highfields',
+  // King's Church Kununurra — apostrophe missing + typo variants
+  "kings church kununurra":               "King's Church Kununurra",
+  "king's church kumunurra":              "King's Church Kununurra",
+  "kings church kumunurra":               "King's Church Kununurra",
+  // HighPointe Life Malaysia (international)
+  'highpointe life malaysia':             'HighPointe Life Malaysia',
+  'highpointe life, malaysia':            'HighPointe Life Malaysia',
+};
+
+// ─── DEFAULT CHURCH ASSIGNMENTS ───────────────────────────────────────────────
+const DEFAULT_ASSIGNMENTS = {
+  // Network 75
+  'Impact Church Canberra':'75',
+  'Action Church Macksville':'75',
+  'Armidale Christian Outreach Centre':'75',
+  'City Church Batemans Bay':'75',
+  'City Church Macarthur':'75',
+  'Citygate Church':'75',
+  'ConXions Church':'75',
+  'Elevation Church Penrith':'75',
+  'Faith Family Gloucester':'75',
+  'Faith Family Grafton':'75',
+  'Heartland Church Gilgandra':'75',
+  'Heartlands Church Casino':'75',
+  'Highways Church':'75',
+  'House of Grace Christian Church':'75',
+  'Ignite Church Cowra':'75',
+  'Kingdom Community Church Weston':'75',
+  'Local Church Forster Tuncurry':'75',
+  'Riverside Church Wellington':'75',
+  'Sapphire City - Church on the Corner':'75',
+  'The Gathering Yamba':'75',
+  'The Vines Community Church Muswellbrook':'75',
+  'Thrive Church Coonabarabran':'75',
+  'Thrive Church Narrabri':'75',
+  'Turningpoint Church Gunnedah':'75',
+  'Katherine Christian Outreach Centre':'75',
+  'Bowen Christian Outreach Centre':'75',
+  'Charleville Christian Outreach Centre':'75',
+  'Charters Towers Christian Outreach Centre':'75',
+  'Citipointe Church Bribie Island':'75',
+  'Citipointe Ipswich':'75',
+  'Crosspoint Church Wamuran':'75',
+  'Crossroads Christian Outreach Centre Miles':'75',
+  'Emmaus Church':'75',
+  'Eumundi Church':'75',
+  'Harvest Point Church Boonah':'75',
+  'Harvest Point Church St George':'75',
+  'Heart Church Roma':'75',
+  'HeartLife Church Narangba':'75',
+  'Highlands Gatton':'75',
+  'Hope Community Church Childers':'75',
+  'Kingaroy Christian Outreach Centre':'75',
+  'Rockhampton COC':'75',
+  'Safe Harbour Family Church Russell Island':'75',
+  'Sanctuary Church Gold Coast':'75',
+  'The Range Christian Outreach Centre':'75',
+  'Transformation Church Gladstone':'75',
+  'U R Church Burdekin':'75',
+  'U R Church Townsville':'75',
+  'Western Downs Life Church':'75',
+  'Whitsunday Impact Church':'75',
+  'Lifeforce Church':'75',
+  'Embassy Church Hobart':'75',
+  'Centerpoint Church Melton':'75',
+  'Citiport Church Portland':'75',
+  'Now Church - Moe':'75',
+  'Now Church - Traralgon':'75',
+  'Riverside Church - Cobram':'75',
+  'Crossroads Perth':'75',
+  'Geraldton Christian Outreach Centre':'75',
+  "King's Church Kununurra":'75',
+  'Surfside Church Margaret River':'75',
+  // Network 120
+  'HeartHouse':'120',
+  'My Church South West Rocks':'120',
+  'Transformation Church Kempsey':'120',
+  'Citybridge Church Logan':'120',
+  'Dalby Christian Outreach Centre':'120',
+  'Life Impact Church Mackay':'120',
+  'Mary Valley Church':'120',
+  'Northpointe Church':'120',
+  'Victory Church Moreton Bay':'120',
+  'Westgate Church':'120',
+  'Day-Star Church':'120',
+  'Elevation Church Melbourne West':'120',
+  // Network 200
+  'Arise Church Lismore':'200',
+  'Faith Family Taree':'200',
+  'Go Church Lake Macquarie':'200',
+  'One Life Church Mudgee':'200',
+  'Seacoast Church Ballina':'200',
+  'The Rock Church Port Stephens':'200',
+  'The Way Collective Church Tamworth':'200',
+  '360 Church - Yeppoon':'200',
+  'Clear Ministries Cairns':'200',
+  'Empower Church Innisfail':'200',
+  'Centerpoint Church Tullamarine':'200',
+  'Liberty Church Epping':'200',
+  'Churchwest':'200',
+  // Network 450
+  'City Church Nowra':'450',
+  'Faith Family Coffs Harbour':'450',
+  'Goodlife Church - Newcastle':'450',
+  'New Life Church Orange':'450',
+  'Riverside Church - Dubbo':'450',
+  'Shellharbour Community Church':'450',
+  'Citipointe North':'450',
+  'Citipointe Pine Rivers':'450',
+  'Elevation Church Cairns':'450',
+  'Elevation Church Gold Coast':'450',
+  'Empower Church Caloundra':'450',
+  'Harvest Point Church Beaudesert':'450',
+  'Highlands Church Highfields':'450',
+  'Kingdom Hope':'450',
+  'NetworX Church':'450',
+  'Victory Church Gympie':'450',
+  'Victory City Church Maryborough':'450',
+  'Infinity Church - South Morang':'450',
+  'Elevation Church Mandurah':'450',
+  // International
+  'HighPointe Life Malaysia':'International',
+  // Network Plus
+  'Elevation Church Hills':'Plus',
+  'Revelations Sydney':'Plus',
+  'The Gathering Tweed':'Plus',
+  'Alive Church Bundaberg':'Plus',
+  'Beacon Church Redlands':'Plus',
+  'Christian Outreach Centre Mount Isa':'Plus',
+  'Citipointe Brisbane':'Plus',
+  'Citipointe Redcliffe':'Plus',
+  'Citipointe West':'Plus',
+  'Highlands Church Middle Ridge':'Plus',
+  'Noosa Church':'Plus',
+  'Suncoast Church':'Plus',
+  'Victory Church Brisbane':'Plus',
+  'Metro Church - Perth':'Plus',
+};
+
+// ─── SUBURB DISAMBIGUATION ────────────────────────────────────────────────────
+// When a church name is ambiguous, check the attendee's suburb to resolve it.
+// Keys: lowercased ambiguous church name. Values: [[suburb_keyword, canonical_name], ...]
+const SUBURB_DISAMBIGUATION = {
+  // Harvest Point Church — 3 campuses
+  'harvest point church': [
+    ['boonah',      'Harvest Point Church Boonah'],
+    ['beaudesert',  'Harvest Point Church Beaudesert'],
+    ['st george',   'Harvest Point Church St George'],
+    ['stgeorge',    'Harvest Point Church St George'],
+  ],
+  'harvest point': [
+    ['boonah',      'Harvest Point Church Boonah'],
+    ['beaudesert',  'Harvest Point Church Beaudesert'],
+    ['st george',   'Harvest Point Church St George'],
+  ],
+  // Elevation Church — 6 campuses across different networks
+  'elevation': [
+    ['penrith',     'Elevation Church Penrith'],
+    ['castle hill', 'Elevation Church Hills'],
+    ['cairns',      'Elevation Church Cairns'],
+    ['burleigh',    'Elevation Church Gold Coast'],
+    ['gold coast',  'Elevation Church Gold Coast'],
+    ['footscray',   'Elevation Church Melbourne West'],
+    ['melbourne',   'Elevation Church Melbourne West'],
+    ['mandurah',    'Elevation Church Mandurah'],
+    ['perth',       'Elevation Church Mandurah'],
+  ],
+  'elevation church': [
+    ['penrith',     'Elevation Church Penrith'],
+    ['castle hill', 'Elevation Church Hills'],
+    ['cairns',      'Elevation Church Cairns'],
+    ['burleigh',    'Elevation Church Gold Coast'],
+    ['gold coast',  'Elevation Church Gold Coast'],
+    ['footscray',   'Elevation Church Melbourne West'],
+    ['melbourne',   'Elevation Church Melbourne West'],
+    ['mandurah',    'Elevation Church Mandurah'],
+    ['perth',       'Elevation Church Mandurah'],
+  ],
+  // Citipointe — 7 campuses
+  'citipointe': [
+    ['bribie',       'Citipointe Church Bribie Island'],
+    ['ipswich',      'Citipointe Ipswich'],
+    ['caboolture',   'Citipointe North'],
+    ['pine rivers',  'Citipointe Pine Rivers'],
+    ['carindale',    'Citipointe Brisbane'],
+    ['brisbane',     'Citipointe Brisbane'],
+    ['redcliffe',    'Citipointe Redcliffe'],
+    ['inala',        'Citipointe West'],
+  ],
+  'citipointe church': [
+    ['bribie',       'Citipointe Church Bribie Island'],
+    ['ipswich',      'Citipointe Ipswich'],
+    ['caboolture',   'Citipointe North'],
+    ['pine rivers',  'Citipointe Pine Rivers'],
+    ['carindale',    'Citipointe Brisbane'],
+    ['brisbane',     'Citipointe Brisbane'],
+    ['redcliffe',    'Citipointe Redcliffe'],
+    ['inala',        'Citipointe West'],
+  ],
+  // Thrive Church — 2 campuses, both Network 75
+  'thrive church': [
+    ['coonabarabran', 'Thrive Church Coonabarabran'],
+    ['narrabri',      'Thrive Church Narrabri'],
+  ],
+  // Centerpoint Church — 2 campuses, different networks
+  'centerpoint church': [
+    ['melton',       'Centerpoint Church Melton'],
+    ['tullamarine',  'Centerpoint Church Tullamarine'],
+  ],
+  'centerpoint church inc': [
+    ['melton',       'Centerpoint Church Melton'],
+    ['tullamarine',  'Centerpoint Church Tullamarine'],
+  ],
+  // Riverside Church — multiple campuses
+  'riverside church': [
+    ['wellington',   'Riverside Church Wellington'],
+    ['dubbo',        'Riverside Church - Dubbo'],
+    ['cobram',       'Riverside Church - Cobram'],
+  ],
+  // Highlands Church — 2 campuses
+  'highlands church': [
+    ['highfields',   'Highlands Church Highfields'],
+    ['toowoomba',    'Highlands Church Middle Ridge'],
+    ['ridge',        'Highlands Church Middle Ridge'],
+  ],
+  // Empower Church — 2 campuses
+  'empower church': [
+    ['innisfail',    'Empower Church Innisfail'],
+    ['caloundra',    'Empower Church Caloundra'],
+  ],
+  // Highlands — bare name without "Church"
+  'highlands': [
+    ['highfields',   'Highlands Church Highfields'],
+    ['toowoomba',    'Highlands Church Middle Ridge'],
+    ['ridge',        'Highlands Church Middle Ridge'],
+  ],
+  // Centerpoint / Centre Point — 2 campuses, different networks
+  'centerpoint': [
+    ['melton',       'Centerpoint Church Melton'],
+    ['tullamarine',  'Centerpoint Church Tullamarine'],
+  ],
+  'centre point': [
+    ['melton',       'Centerpoint Church Melton'],
+    ['tullamarine',  'Centerpoint Church Tullamarine'],
+  ],
+  // Faith Family — multiple campuses
+  'faith family': [
+    ['gloucester',   'Faith Family Gloucester'],
+    ['grafton',      'Faith Family Grafton'],
+    ['taree',        'Faith Family Taree'],
+    ['coffs',        'Faith Family Coffs Harbour'],
+    ['harbour',      'Faith Family Coffs Harbour'],
+  ],
+  // Victory Church — multiple campuses
+  'victory church': [
+    ['moreton',      'Victory Church Moreton Bay'],
+    ['caboolture',   'Victory Church Moreton Bay'],
+    ['gympie',       'Victory Church Gympie'],
+    ['brisbane',     'Victory Church Brisbane'],
+    ['bridgeman',    'Victory Church Brisbane'],
+  ],
+};
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let rawCounts = {};
+let assignments = {};
+let lastUploadDate = null;
+let isViewOnly = false;
+
+// ─── PERSISTENCE ──────────────────────────────────────────────────────────────
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem('inc26_settings') || '{}');
+    document.getElementById('colNameInput').value      = s.colName      || 'Your Church Name';
+    document.getElementById('suburbColInput').value    = s.suburbColName || '';
+    document.getElementById('groupRulesInput').value   = (s.groupRules  || []).join('\n');
+    document.getElementById('aliasRulesInput').value   = (s.aliasRules  || []).join('\n');
+  } catch(e) {}
+}
+
+function getSettings() {
+  return {
+    colName:       document.getElementById('colNameInput').value.trim()   || 'Your Church Name',
+    suburbColName: document.getElementById('suburbColInput').value.trim() || '',
+    groupRules:    document.getElementById('groupRulesInput').value.split('\n').map(l=>l.trim()).filter(Boolean),
+    aliasRules:    document.getElementById('aliasRulesInput').value.split('\n').map(l=>l.trim()).filter(Boolean),
+  };
+}
+
+function saveSettings() {
+  localStorage.setItem('inc26_settings', JSON.stringify(getSettings()));
+  closeModal('settingsModal');
+}
+
+function loadAssignments() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('inc26_assignments') || '{}');
+    // Merge defaults with saved (saved overrides defaults)
+    assignments = Object.assign({}, DEFAULT_ASSIGNMENTS, saved);
+  } catch(e) {
+    assignments = Object.assign({}, DEFAULT_ASSIGNMENTS);
+  }
+}
+
+function persistAssignments() {
+  // Only persist user-made changes on top of defaults
+  const delta = {};
+  for (const [k,v] of Object.entries(assignments)) {
+    if (DEFAULT_ASSIGNMENTS[k] !== v) delta[k] = v;
+  }
+  localStorage.setItem('inc26_assignments', JSON.stringify(delta));
+}
+
+// ─── CSV ──────────────────────────────────────────────────────────────────────
+function handleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => { try { parseCsv(e.target.result); } catch(err) { alert('Error: ' + err.message); } };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function parseCsv(text) {
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  if (lines.length < 2) { alert('CSV appears empty.'); return; }
+  const headers = parseLine(lines[0]);
+  const s = getSettings();
+  const col = headers.findIndex(h => h.toLowerCase() === s.colName.toLowerCase());
+  if (col === -1) {
+    alert(`Column "${s.colName}" not found.\n\nAvailable columns:\n${headers.join(', ')}\n\nUpdate the column name in Church Settings.`);
+    return;
+  }
+  // Find suburb column — try the configured name first, then common Brushfire column names
+  const suburbCandidates = s.suburbColName
+    ? [s.suburbColName]
+    : ['address: city','city','suburb','billing address: city','address 1: city','town','address: suburb'];
+  const suburbCol = headers.findIndex(h => suburbCandidates.some(c => h.toLowerCase() === c.toLowerCase()));
+
+  const counts = {};
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const cols = parseLine(line);
+    const raw    = (cols[col] || '').trim();
+    if (!raw) continue;
+    const suburb = suburbCol >= 0 ? (cols[suburbCol] || '').trim() : '';
+    const name   = normaliseName(raw, suburb, s);
+    counts[name] = (counts[name] || 0) + 1;
+  }
+  rawCounts = counts;
+  lastUploadDate = new Date();
+  loadAssignments();
+  renderDashboard();
+  showDashboard();
+}
+
+function parseLine(line) {
+  const result = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { if (inQ && line[i+1]==='"') { cur+='"'; i++; } else inQ=!inQ; }
+    else if (c===',' && !inQ) { result.push(cur.trim()); cur=''; }
+    else cur+=c;
+  }
+  result.push(cur.trim()); return result;
+}
+
+function normaliseName(raw, suburb, s) {
+  let name = raw.trim();
+  // Brushfire sometimes exports "Church Name, City" — strip commas and normalise spaces
+  name = name.replace(/,\s*/g, ' ').replace(/\s+/g, ' ').trim();
+  // 1. User-defined exact aliases
+  for (const rule of s.aliasRules) {
+    const [from, to] = rule.split('→').map(p=>p.trim());
+    if (from && to && name.toLowerCase() === from.toLowerCase()) { name = to; break; }
+  }
+  // 2. Built-in aliases (handles common short/variant names from Brushfire)
+  const builtIn = DEFAULT_ALIASES[name.toLowerCase()];
+  if (builtIn) name = builtIn;
+  // 3. Suburb-based disambiguation — only runs if the result is still ambiguous
+  //    (i.e. not yet in DEFAULT_ASSIGNMENTS) and a suburb is available
+  if (suburb && !DEFAULT_ASSIGNMENTS[name]) {
+    const rules = SUBURB_DISAMBIGUATION[name.toLowerCase()];
+    if (rules) {
+      const subLower = suburb.toLowerCase();
+      for (const [keyword, canonical] of rules) {
+        if (subLower.includes(keyword)) { name = canonical; break; }
+      }
+    }
+  }
+  // 4. User-defined prefix/multi-site grouping rules
+  for (const rule of s.groupRules) {
+    const [prefix, canon] = rule.split('→').map(p=>p.trim());
+    if (prefix && canon && name.toLowerCase().startsWith(prefix.toLowerCase())) { name = canon; break; }
+  }
+  // 5. Case-insensitive fallback — snap to the canonical key in DEFAULT_ASSIGNMENTS
+  //    handles CSV casing differences (e.g. "goodlife church - newcastle" → "Goodlife Church - Newcastle")
+  if (!DEFAULT_ASSIGNMENTS[name]) {
+    const nameLower = name.toLowerCase();
+    for (const key of Object.keys(DEFAULT_ASSIGNMENTS)) {
+      if (key.toLowerCase() === nameLower) { name = key; break; }
+    }
+  }
+  return name;
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function showDashboard() {
+  document.getElementById('emptyState').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  if (lastUploadDate) {
+    const el = document.getElementById('lastUpdated');
+    el.textContent = 'Updated ' + lastUploadDate.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
+    el.classList.remove('hidden');
+  }
+  if (!isViewOnly) document.getElementById('shareBtn').classList.remove('hidden');
+}
+
+function renderDashboard() {
+  const byNet = {}; NETWORKS.forEach(n => byNet[n] = {});
+  const unassigned = {};
+  for (const [church, count] of Object.entries(rawCounts)) {
+    const net = assignments[church] || null;
+    if (net && byNet[net]) byNet[net][church] = count;
+    else unassigned[church] = count;
+  }
+  const total   = Object.values(rawCounts).reduce((a,b)=>a+b,0);
+  const unTotal = Object.values(unassigned).reduce((a,b)=>a+b,0);
+  const n75t  = sum(byNet['75']);
+  const n120t = sum(byNet['120']);
+  const n200t = sum(byNet['200']);
+  const n450t = sum(byNet['450']);
+  const nPt   = sum(byNet['Plus']);
+  const nIt   = sum(byNet['International']);
+
+  document.getElementById('kpiTotal').textContent        = total.toLocaleString();
+  document.getElementById('kpiChurchCount').textContent  = `from ${Object.keys(rawCounts).length} churches`;
+  document.getElementById('kpiUnassigned').textContent   = Object.keys(unassigned).length;
+  document.getElementById('kpiUnassignedSub').textContent= `${unTotal} registrations`;
+  document.getElementById('kpi75').textContent    = n75t.toLocaleString();
+  document.getElementById('kpi120').textContent   = n120t.toLocaleString();
+  document.getElementById('kpi200').textContent   = n200t.toLocaleString();
+  document.getElementById('kpi450').textContent   = n450t.toLocaleString();
+  document.getElementById('kpiPlus').textContent  = nPt.toLocaleString();
+  document.getElementById('kpiIntl').textContent  = nIt.toLocaleString();
+  document.getElementById('kpi75sub').textContent    = churchLabel(byNet['75']);
+  document.getElementById('kpi120sub').textContent   = churchLabel(byNet['120']);
+  document.getElementById('kpi200sub').textContent   = churchLabel(byNet['200']);
+  document.getElementById('kpi450sub').textContent   = churchLabel(byNet['450']);
+  document.getElementById('kpiPlussub').textContent  = churchLabel(byNet['Plus']);
+  document.getElementById('kpiIntlsub').textContent  = churchLabel(byNet['International']);
+
+  // Network cards
+  const grid = document.getElementById('networkGrid');
+  grid.innerHTML = '';
+  NETWORKS.forEach(net => {
+    const churches = byNet[net];
+    const netTotal = sum(churches);
+    const sorted   = Object.entries(churches).sort((a,b)=>b[1]-a[1]);
+    const maxC     = sorted.length ? sorted[0][1] : 1;
+    const col      = NETWORK_COLORS[net];
+    const tcol     = NETWORK_TEXT[net];
+    const pct      = total ? Math.round(netTotal/total*100) : 0;
+    const card = document.createElement('div');
+    card.className = 'network-card';
+    card.innerHTML = `
+      <div class="network-header">
+        <div>
+          <span class="network-badge" style="background:${col};color:${tcol};">${NETWORK_LABELS[net]}</span>
+          <div class="network-sub">${Object.keys(churches).length} churches</div>
+          <div class="net-progress"><div class="net-progress-fill" style="width:${pct}%;background:${col};"></div></div>
+        </div>
+        <div style="text-align:right;">
+          <div class="network-total" style="color:${col};">${netTotal.toLocaleString()}</div>
+          <div class="network-sub">${pct}% of total</div>
+        </div>
+      </div>
+      <div class="church-list">${
+        sorted.length
+          ? sorted.map(([c,n])=>`
+              <div class="church-row">
+                <div class="church-name">${esc(c)}</div>
+                <div class="church-count">
+                  <div class="church-bar-wrap"><div class="church-bar" style="width:${Math.round(n/maxC*100)}%;background:${col};"></div></div>
+                  ${n}
+                </div>
+              </div>`).join('')
+          : '<div class="empty-state">No churches assigned yet</div>'
+      }</div>`;
+    grid.appendChild(card);
+  });
+
+  // Unassigned
+  const uSec = document.getElementById('unassignedSection');
+  const uList = document.getElementById('unassignedList');
+  if (Object.keys(unassigned).length) {
+    uSec.classList.remove('hidden');
+    uList.innerHTML = Object.entries(unassigned).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`
+      <div class="church-row">
+        <div class="church-name">${esc(c)}</div>
+        <div class="church-count">${n}</div>
+      </div>`).join('');
+  } else {
+    uSec.classList.add('hidden');
+  }
+}
+
+function sum(obj) { return Object.values(obj).reduce((a,b)=>a+b,0); }
+function churchLabel(obj) { const n=Object.keys(obj).length; return `${n} church${n===1?'':'es'}`; }
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ─── MODALS ───────────────────────────────────────────────────────────────────
+function openSettings() {
+  loadSettings();
+  document.getElementById('settingsModal').classList.remove('hidden');
+}
+
+const tempAssignments = {};
+function openAssign() {
+  Object.keys(tempAssignments).forEach(k => delete tempAssignments[k]);
+  buildAssignList('');
+  const unCount = Object.keys(rawCounts).filter(c=>!assignments[c]).length;
+  document.getElementById('assignNotice').textContent =
+    `${unCount} church${unCount===1?'':'es'} not yet assigned to a network. All churches shown below — you can change any assignment.`;
+  document.getElementById('assignSearch').value = '';
+  document.getElementById('assignModal').classList.remove('hidden');
+}
+
+function buildAssignList(filter) {
+  const container = document.getElementById('assignList');
+  const sorted = Object.entries(rawCounts)
+    .sort((a,b)=>b[1]-a[1])
+    .filter(([c])=>!filter || c.toLowerCase().includes(filter.toLowerCase()));
+  container.innerHTML = sorted.map(([church, count]) => {
+    const cur = tempAssignments[church] !== undefined ? tempAssignments[church] : (assignments[church] || '');
+    const opts = ['', ...NETWORKS].map(n =>
+      `<option value="${n}" ${cur===n?'selected':''}>${n||'— unassigned —'}</option>`
+    ).join('');
+    return `<div class="assign-row" data-church="${esc(church)}">
+      <div class="assign-name">${esc(church)}</div>
+      <div class="assign-count">${count}</div>
+      <select class="assign-select" onchange="tempAssign('${esc(church).replace(/'/g,"\\'")}',this.value)">${opts}</select>
+    </div>`;
+  }).join('');
+}
+
+function tempAssign(church, network) { tempAssignments[church] = network || null; }
+
+function filterAssign() { buildAssignList(document.getElementById('assignSearch').value); }
+
+function saveAssignments() {
+  document.querySelectorAll('#assignList .assign-row').forEach(row => {
+    const church = row.dataset.church;
+    const sel = row.querySelector('.assign-select');
+    if (sel.value) assignments[church] = sel.value;
+    else delete assignments[church];
+  });
+  persistAssignments();
+  closeModal('assignModal');
+  renderDashboard();
+}
+
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+// ─── SHARE / VIEW-ONLY ────────────────────────────────────────────────────────
+function getDelta() {
+  const delta = {};
+  for (const [k,v] of Object.entries(assignments)) {
+    if (DEFAULT_ASSIGNMENTS[k] !== v) delta[k] = v;
+  }
+  return delta;
+}
+
+function generateViewLink() {
+  try {
+    const snapshot = JSON.stringify({ c: rawCounts, a: getDelta() });
+    const encoded  = btoa(unescape(encodeURIComponent(snapshot)));
+    const url      = location.origin + location.pathname + '#view=' + encoded;
+    navigator.clipboard.writeText(url).then(
+      () => { document.getElementById('shareBtn').textContent = 'Copied!'; setTimeout(()=>{ document.getElementById('shareBtn').textContent = 'Share View'; }, 2000); },
+      () => prompt('Copy this link:', url)
+    );
+  } catch(e) { alert('Error generating link: ' + e.message); }
+}
+
+function loadViewFromHash() {
+  try {
+    const encoded = location.hash.slice(6);
+    const data    = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+    rawCounts = data.c || {};
+    loadAssignments();
+    if (data.a) Object.assign(assignments, data.a);
+    lastUploadDate = null;
+    renderDashboard();
+    document.getElementById('emptyState').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+    // Hide all edit controls
+    document.getElementById('uploadBtn').classList.add('hidden');
+    document.getElementById('settingsBtn').classList.add('hidden');
+    document.getElementById('csvInput').classList.add('hidden');
+    document.getElementById('viewBanner').classList.remove('hidden');
+    document.querySelector('#unassignedSection .btn')?.classList.add('hidden');
+  } catch(e) {
+    alert('Invalid or expired view link.');
+  }
+}
+
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target===o) o.classList.add('hidden'); });
+});
+
+// ─── DRAG & DROP ──────────────────────────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+if (dropZone) {
+  dropZone.addEventListener('dragover', e=>{ e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', ()=>dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e=>{
+    e.preventDefault(); dropZone.classList.remove('drag-over');
+    const f=e.dataTransfer.files[0]; if(!f) return;
+    const r=new FileReader(); r.onload=ev=>parseCsv(ev.target.result); r.readAsText(f);
+  });
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+loadSettings();
+loadAssignments();
+if (location.hash.startsWith('#view=')) {
+  isViewOnly = true;
+  loadViewFromHash();
+}
+</script>
+</body>
+</html>
