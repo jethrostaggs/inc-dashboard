@@ -851,6 +851,8 @@ function parseCsv(text) {
   }
   rawCounts = applyMergesToCounts(counts);
   lastUploadDate = new Date();
+  localStorage.setItem('inc26_counts', JSON.stringify(rawCounts));
+  localStorage.setItem('inc26_upload_date', lastUploadDate.toISOString());
   loadAssignments();
   renderDashboard();
   showDashboard();
@@ -1273,6 +1275,17 @@ loadMerges();
 if (location.hash.startsWith('#view=') || location.hash.startsWith('#view2=')) {
   isViewOnly = true;
   loadViewFromHash();
+} else {
+  try {
+    const saved = localStorage.getItem('inc26_counts');
+    if (saved) {
+      rawCounts = JSON.parse(saved);
+      const d = localStorage.getItem('inc26_upload_date');
+      if (d) lastUploadDate = new Date(d);
+      renderDashboard();
+      showDashboard();
+    }
+  } catch(e) {}
 }
 </script>
 </body>
