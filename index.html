@@ -115,8 +115,8 @@ body{font-family:'Barlow',system-ui,sans-serif;background:var(--bg);color:var(--
 
 /* FORM */
 label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);display:block;margin-bottom:5px;}
-input[type=text],select,textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;outline:none;transition:border-color .15s;font-family:inherit;}
-input[type=text]:focus,select:focus,textarea:focus{border-color:var(--border2);}
+input[type=text],input[type=password],select,textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:8px 12px;font-size:13px;outline:none;transition:border-color .15s;font-family:inherit;}
+input[type=text]:focus,input[type=password]:focus,select:focus,textarea:focus{border-color:var(--border2);}
 textarea{resize:vertical;min-height:80px;}
 select option{background:var(--surface);}
 
@@ -172,6 +172,7 @@ select option{background:var(--surface);}
     <span class="last-updated hidden" id="lastUpdated"></span>
     <button class="btn hidden" id="shareBtn" onclick="generateViewLink()">Share View</button>
     <button class="btn hidden" id="mergeBtn" onclick="openMerge()">Merge Churches</button>
+    <button class="btn hidden" id="publishBtn" onclick="publishLive()">Publish Live</button>
     <button class="btn hidden" id="manualBtn" onclick="openManualTickets()">Add Tickets</button>
     <button class="btn" id="settingsBtn" onclick="openSettings()">Church Settings</button>
     <button class="btn btn-primary" id="uploadBtn" onclick="document.getElementById('csvInput').click()">Upload CSV</button>
@@ -339,6 +340,19 @@ select option{background:var(--surface);}
         <label>Name Aliases</label>
         <div class="section-hint" style="margin-bottom:6px;">Exact match → canonical name. Handles typos or abbreviations.</div>
         <textarea id="aliasRulesInput" placeholder="C3 Church → C3&#10;C3Church → C3"></textarea>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:16px;">
+        <div class="divider-label" style="padding-top:0;">Live Sharing — GitHub</div>
+        <div style="margin-bottom:12px;">
+          <label>Personal Access Token <span style="font-weight:400;text-transform:none;letter-spacing:0;">(classic, contents: write)</span></label>
+          <input type="password" id="githubPatInput" placeholder="ghp_xxxxxxxxxxxx" autocomplete="off">
+          <div class="section-hint" style="margin-top:4px;">Stored in your browser only — never included in settings exports. <a href="https://github.com/settings/tokens/new?scopes=repo&description=INC+Dashboard" target="_blank" style="color:var(--moss);">Create one on GitHub →</a></div>
+        </div>
+        <div>
+          <label>GitHub Repo</label>
+          <input type="text" id="githubRepoInput" placeholder="owner/repo">
+          <div class="section-hint" style="margin-top:4px;">Where <code>live-data.json</code> will be saved. Default: <code>jethrostaggs/inc-dashboard</code></div>
+        </div>
       </div>
     </div>
     <div class="modal-footer" style="justify-content:space-between;">
@@ -744,6 +758,8 @@ function loadSettings() {
     document.getElementById('suburbColInput').value    = s.suburbColName || '';
     document.getElementById('groupRulesInput').value   = (s.groupRules  || []).join('\n');
     document.getElementById('aliasRulesInput').value   = (s.aliasRules  || []).join('\n');
+    document.getElementById('githubPatInput').value    = s.githubPat    || '';
+    document.getElementById('githubRepoInput').value   = s.githubRepo   || 'jethrostaggs/inc-dashboard';
   } catch(e) {}
 }
 
@@ -753,6 +769,8 @@ function getSettings() {
     suburbColName: document.getElementById('suburbColInput').value.trim() || '',
     groupRules:    document.getElementById('groupRulesInput').value.split('\n').map(l=>l.trim()).filter(Boolean),
     aliasRules:    document.getElementById('aliasRulesInput').value.split('\n').map(l=>l.trim()).filter(Boolean),
+    githubPat:     document.getElementById('githubPatInput').value,
+    githubRepo:    document.getElementById('githubRepoInput').value.trim() || 'jethrostaggs/inc-dashboard',
   };
 }
 
@@ -766,7 +784,9 @@ function exportSettings() {
   for (const [k,v] of Object.entries(assignments)) {
     if (DEFAULT_ASSIGNMENTS[k] !== v) delta[k] = v;
   }
-  const payload = { version: 1, settings: getSettings(), assignments: delta, mergeRules, manualAdjustments };
+  const exportableSettings = Object.assign({}, getSettings());
+  delete exportableSettings.githubPat;
+  const payload = { version: 1, settings: exportableSettings, assignments: delta, mergeRules, manualAdjustments };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -971,6 +991,7 @@ function showDashboard() {
     document.getElementById('shareBtn').classList.remove('hidden');
     document.getElementById('mergeBtn').classList.remove('hidden');
     document.getElementById('manualBtn').classList.remove('hidden');
+    document.getElementById('publishBtn').classList.remove('hidden');
   }
 }
 
@@ -1216,6 +1237,94 @@ function deleteMergeRule(source) {
   saveMerges();
 }
 
+// ─── LIVE PUBLISH (GITHUB) ───────────────────────────────────────────────────
+async function publishLive() {
+  const btn = document.getElementById('publishBtn');
+  const s   = getSettings();
+  const pat  = s.githubPat?.trim();
+  const repo = s.githubRepo?.trim() || 'jethrostaggs/inc-dashboard';
+
+  if (!pat) {
+    alert('Add your GitHub Personal Access Token in Church Settings first.');
+    openSettings();
+    return;
+  }
+
+  btn.textContent = 'Publishing…';
+  btn.disabled = true;
+
+  try {
+    const data    = { c: rawCounts, a: getDelta(), m: manualAdjustments, updated: new Date().toISOString() };
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+
+    // Get existing file SHA so GitHub lets us update it
+    let sha;
+    const check = await fetch(`https://api.github.com/repos/${repo}/contents/live-data.json`, {
+      headers: { Authorization: `Bearer ${pat}`, Accept: 'application/vnd.github.v3+json' }
+    });
+    if (check.ok) sha = (await check.json()).sha;
+
+    const body = { message: 'Update live dashboard data', content: encoded };
+    if (sha) body.sha = sha;
+
+    const put = await fetch(`https://api.github.com/repos/${repo}/contents/live-data.json`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${pat}`,
+        Accept: 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!put.ok) { const e = await put.json(); throw new Error(e.message || put.statusText); }
+
+    const liveUrl = location.origin + location.pathname + '#live';
+    await navigator.clipboard.writeText(liveUrl).catch(() => prompt('Share this fixed link:', liveUrl));
+    btn.textContent = 'Published!';
+    setTimeout(() => { btn.textContent = 'Publish Live'; btn.disabled = false; }, 2500);
+  } catch(e) {
+    alert('Publish failed: ' + e.message);
+    btn.textContent = 'Publish Live';
+    btn.disabled = false;
+  }
+}
+
+async function loadLiveFromGitHub() {
+  const s    = getSettings();
+  const repo = s.githubRepo?.trim() || 'jethrostaggs/inc-dashboard';
+  try {
+    const resp = await fetch(
+      `https://api.github.com/repos/${repo}/contents/live-data.json`,
+      { headers: { Accept: 'application/vnd.github.v3+json' } }
+    );
+    if (!resp.ok) throw new Error('Live data not published yet. Ask your admin to click "Publish Live".');
+    const json = await resp.json();
+    const data = JSON.parse(decodeURIComponent(escape(atob(json.content.replace(/\n/g, '')))));
+    rawCounts = data.c || {};
+    loadAssignments();
+    if (data.a) Object.assign(assignments, data.a);
+    manualAdjustments = data.m || {};
+    if (data.updated) lastUploadDate = new Date(data.updated);
+    renderDashboard();
+    document.getElementById('emptyState').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+    if (lastUploadDate) {
+      const el = document.getElementById('lastUpdated');
+      el.textContent = 'Updated ' + lastUploadDate.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
+      el.classList.remove('hidden');
+    }
+    ['uploadBtn','settingsBtn','mergeBtn','manualBtn','publishBtn'].forEach(id =>
+      document.getElementById(id).classList.add('hidden')
+    );
+    document.getElementById('viewBanner').classList.remove('hidden');
+    document.querySelector('#unassignedSection .btn')?.classList.add('hidden');
+    isViewOnly = true;
+  } catch(e) {
+    alert('Failed to load live data: ' + e.message);
+  }
+}
+
 // ─── MANUAL TICKETS ──────────────────────────────────────────────────────────
 function openManualTickets() {
   document.getElementById('manualSearch').value = '';
@@ -1383,7 +1492,10 @@ loadSettings();
 loadAssignments();
 loadMerges();
 loadManualAdjustments();
-if (location.hash.startsWith('#view=') || location.hash.startsWith('#view2=')) {
+if (location.hash === '#live') {
+  loadLiveFromGitHub();
+  setInterval(loadLiveFromGitHub, 120000); // auto-refresh every 2 min
+} else if (location.hash.startsWith('#view=') || location.hash.startsWith('#view2=')) {
   isViewOnly = true;
   loadViewFromHash();
 } else {
