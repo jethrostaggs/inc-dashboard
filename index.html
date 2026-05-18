@@ -172,7 +172,7 @@ select option{background:var(--surface);}
     <span class="last-updated hidden" id="lastUpdated"></span>
     <button class="btn hidden" id="shareBtn" onclick="generateViewLink()">Share View</button>
     <button class="btn hidden" id="mergeBtn" onclick="openMerge()">Merge Churches</button>
-    <button class="btn hidden" id="publishBtn" onclick="publishLive()">Publish Live</button>
+    <button class="btn hidden" id="publishBtn" onclick="publishToSupabase()">Publish Live</button>
     <button class="btn hidden" id="manualBtn" onclick="openManualTickets()">Add Tickets</button>
     <button class="btn" id="settingsBtn" onclick="openSettings()">Church Settings</button>
     <button class="btn btn-primary" id="uploadBtn" onclick="document.getElementById('csvInput').click()">Upload CSV</button>
@@ -342,16 +342,19 @@ select option{background:var(--surface);}
         <textarea id="aliasRulesInput" placeholder="C3 Church → C3&#10;C3Church → C3"></textarea>
       </div>
       <div style="border-top:1px solid var(--border);padding-top:16px;">
-        <div class="divider-label" style="padding-top:0;">Live Sharing — GitHub</div>
+        <div class="divider-label" style="padding-top:0;">Live Sharing — Supabase</div>
+        <div class="notice" style="margin-bottom:10px;font-size:12px;">
+          One-time setup: create a free Supabase project, open the SQL Editor, and run:<br>
+          <code style="display:block;margin-top:6px;line-height:1.8;font-size:11px;">create table live_data (id int primary key default 1, payload jsonb, updated_at timestamptz default now());<br>insert into live_data values (1, '{}'::jsonb, now());<br>alter table live_data enable row level security;<br>create policy "public" on live_data for all using (true) with check (true);</code>
+        </div>
         <div style="margin-bottom:12px;">
-          <label>Personal Access Token <span style="font-weight:400;text-transform:none;letter-spacing:0;">(classic, contents: write)</span></label>
-          <input type="password" id="githubPatInput" placeholder="ghp_xxxxxxxxxxxx" autocomplete="off">
-          <div class="section-hint" style="margin-top:4px;">Stored in your browser only — never included in settings exports. <a href="https://github.com/settings/tokens/new?scopes=repo&description=INC+Dashboard" target="_blank" style="color:var(--moss);">Create one on GitHub →</a></div>
+          <label>Supabase Project URL</label>
+          <input type="text" id="supabaseUrlInput" placeholder="https://xxxxxxxxxxxx.supabase.co">
         </div>
         <div>
-          <label>GitHub Repo</label>
-          <input type="text" id="githubRepoInput" placeholder="owner/repo">
-          <div class="section-hint" style="margin-top:4px;">Where <code>live-data.json</code> will be saved. Default: <code>jethrostaggs/inc-dashboard</code></div>
+          <label>Supabase Anon Key</label>
+          <input type="password" id="supabaseKeyInput" placeholder="eyJhbGciOiJ…" autocomplete="off">
+          <div class="section-hint" style="margin-top:4px;">Found in Project Settings → API. Stored in your browser only — not included in exports.</div>
         </div>
       </div>
     </div>
@@ -758,8 +761,8 @@ function loadSettings() {
     document.getElementById('suburbColInput').value    = s.suburbColName || '';
     document.getElementById('groupRulesInput').value   = (s.groupRules  || []).join('\n');
     document.getElementById('aliasRulesInput').value   = (s.aliasRules  || []).join('\n');
-    document.getElementById('githubPatInput').value    = s.githubPat    || '';
-    document.getElementById('githubRepoInput').value   = s.githubRepo   || 'jethrostaggs/inc-dashboard';
+    document.getElementById('supabaseUrlInput').value  = s.supabaseUrl  || '';
+    document.getElementById('supabaseKeyInput').value  = s.supabaseKey  || '';
   } catch(e) {}
 }
 
@@ -769,8 +772,8 @@ function getSettings() {
     suburbColName: document.getElementById('suburbColInput').value.trim() || '',
     groupRules:    document.getElementById('groupRulesInput').value.split('\n').map(l=>l.trim()).filter(Boolean),
     aliasRules:    document.getElementById('aliasRulesInput').value.split('\n').map(l=>l.trim()).filter(Boolean),
-    githubPat:     document.getElementById('githubPatInput').value,
-    githubRepo:    document.getElementById('githubRepoInput').value.trim() || 'jethrostaggs/inc-dashboard',
+    supabaseUrl:   document.getElementById('supabaseUrlInput').value.trim().replace(/\/$/, ''),
+    supabaseKey:   document.getElementById('supabaseKeyInput').value.trim(),
   };
 }
 
@@ -785,7 +788,7 @@ function exportSettings() {
     if (DEFAULT_ASSIGNMENTS[k] !== v) delta[k] = v;
   }
   const exportableSettings = Object.assign({}, getSettings());
-  delete exportableSettings.githubPat;
+  delete exportableSettings.supabaseKey;
   const payload = { version: 1, settings: exportableSettings, assignments: delta, mergeRules, manualAdjustments };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
@@ -1237,15 +1240,15 @@ function deleteMergeRule(source) {
   saveMerges();
 }
 
-// ─── LIVE PUBLISH (GITHUB) ───────────────────────────────────────────────────
-async function publishLive() {
+// ─── LIVE PUBLISH (SUPABASE) ─────────────────────────────────────────────────
+async function publishToSupabase() {
   const btn = document.getElementById('publishBtn');
   const s   = getSettings();
-  const pat  = s.githubPat?.trim();
-  const repo = s.githubRepo?.trim() || 'jethrostaggs/inc-dashboard';
+  const url = s.supabaseUrl;
+  const key = s.supabaseKey;
 
-  if (!pat) {
-    alert('Add your GitHub Personal Access Token in Church Settings first.');
+  if (!url || !key) {
+    alert('Add your Supabase URL and anon key in Church Settings first.');
     openSettings();
     return;
   }
@@ -1254,30 +1257,19 @@ async function publishLive() {
   btn.disabled = true;
 
   try {
-    const data    = { c: rawCounts, a: getDelta(), m: manualAdjustments, updated: new Date().toISOString() };
-    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-
-    // Get existing file SHA so GitHub lets us update it
-    let sha;
-    const check = await fetch(`https://api.github.com/repos/${repo}/contents/live-data.json`, {
-      headers: { Authorization: `Bearer ${pat}`, Accept: 'application/vnd.github.v3+json' }
-    });
-    if (check.ok) sha = (await check.json()).sha;
-
-    const body = { message: 'Update live dashboard data', content: encoded };
-    if (sha) body.sha = sha;
-
-    const put = await fetch(`https://api.github.com/repos/${repo}/contents/live-data.json`, {
-      method: 'PUT',
+    const payload = { c: rawCounts, a: getDelta(), m: manualAdjustments, updated: new Date().toISOString() };
+    const resp = await fetch(`${url}/rest/v1/live_data`, {
+      method: 'POST',
       headers: {
-        Authorization: `Bearer ${pat}`,
-        Accept: 'application/vnd.github.v3+json',
+        'apikey': key,
+        'Authorization': `Bearer ${key}`,
         'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify([{ id: 1, payload, updated_at: new Date().toISOString() }]),
     });
 
-    if (!put.ok) { const e = await put.json(); throw new Error(e.message || put.statusText); }
+    if (!resp.ok) { const e = await resp.json(); throw new Error(JSON.stringify(e)); }
 
     const liveUrl = location.origin + location.pathname + '#live';
     await navigator.clipboard.writeText(liveUrl).catch(() => prompt('Share this fixed link:', liveUrl));
@@ -1290,17 +1282,29 @@ async function publishLive() {
   }
 }
 
-async function loadLiveFromGitHub() {
-  const s    = getSettings();
-  const repo = s.githubRepo?.trim() || 'jethrostaggs/inc-dashboard';
+async function loadLiveFromSupabase() {
+  const s   = getSettings();
+  const url = s.supabaseUrl;
+  const key = s.supabaseKey;
+
+  if (!url || !key) {
+    alert('Live sharing is not configured. Ask your admin to set up Supabase in Church Settings.');
+    return;
+  }
+
   try {
-    const resp = await fetch(
-      `https://api.github.com/repos/${repo}/contents/live-data.json`,
-      { headers: { Accept: 'application/vnd.github.v3+json' } }
-    );
-    if (!resp.ok) throw new Error('Live data not published yet. Ask your admin to click "Publish Live".');
-    const json = await resp.json();
-    const data = JSON.parse(decodeURIComponent(escape(atob(json.content.replace(/\n/g, '')))));
+    const resp = await fetch(`${url}/rest/v1/live_data?id=eq.1&select=payload,updated_at`, {
+      headers: {
+        'apikey': key,
+        'Authorization': `Bearer ${key}`,
+        'Accept': 'application/json',
+      },
+    });
+    if (!resp.ok) throw new Error('Could not reach Supabase.');
+    const rows = await resp.json();
+    if (!rows.length || !rows[0].payload?.c) throw new Error('No live data published yet. Ask your admin to click "Publish Live".');
+
+    const data = rows[0].payload;
     rawCounts = data.c || {};
     loadAssignments();
     if (data.a) Object.assign(assignments, data.a);
@@ -1311,7 +1315,7 @@ async function loadLiveFromGitHub() {
     document.getElementById('dashboard').classList.remove('hidden');
     if (lastUploadDate) {
       const el = document.getElementById('lastUpdated');
-      el.textContent = 'Updated ' + lastUploadDate.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
+      el.textContent = 'Updated ' + lastUploadDate.toLocaleDateString('en-AU', {day:'numeric',month:'short',year:'numeric'});
       el.classList.remove('hidden');
     }
     ['uploadBtn','settingsBtn','mergeBtn','manualBtn','publishBtn'].forEach(id =>
@@ -1493,8 +1497,8 @@ loadAssignments();
 loadMerges();
 loadManualAdjustments();
 if (location.hash === '#live') {
-  loadLiveFromGitHub();
-  setInterval(loadLiveFromGitHub, 120000); // auto-refresh every 2 min
+  loadLiveFromSupabase();
+  setInterval(loadLiveFromSupabase, 120000); // auto-refresh every 2 min
 } else if (location.hash.startsWith('#view=') || location.hash.startsWith('#view2=')) {
   isViewOnly = true;
   loadViewFromHash();
